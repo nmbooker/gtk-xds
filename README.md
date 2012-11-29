@@ -37,14 +37,41 @@ and be sure to keep the number prefixes in sequence.  DO NOT change existing
 .patch files.
 
 Suggestions on how best to manage the patches (I'm sure keeping .patch 
-files in the repository isn't the best way) welcome in the Issues tracker.
+files in the repository isn't the best way) welcome in issue #1.
+
+ https://github.com/nmbooker/gtk-xds/issues/1
 
 The patches also apply nicely to Ubuntu's gtk+3-0 source package in precise,
-at least it does for 3.4.2, but you have to dpkg-source --commit after
+at least it does for 3.4.2, but you have to ```dpkg-source --commit``` after
 applying the patches to make it play ball.
-Once debuild has run, dpkg -i libgtk-3-{dev,0}*.deb will give you drag
+Once debuild has run, ```dpkg -i libgtk-3-{dev,0}*.deb``` in the parent directory will give you drag
 and drop save in GTK+3 applications such as gedit.
 
 A similar patch set for gtk+2 would be good, as a lot of apps still use
 gtk2.  I targeted gtk3 first because there's more chance the gtk people
 themselves might like to use my code for a proper implementation.
+
+Note that dragging to remote locations in Nautilus, when using a temporary
+rather than packaged version with
+
+```
+LD_LIBRARY_PATH=/tmp/gtk+/lib
+```
+
+does not work.  However if you patch your distro's native packages it does.
+
+Any bugs relating to the use of these patches should go in gtk-xds issue tracker, and not in the upstream GTK bug tracker - you'll only annoy them.
+
+
+== Disclaimer of warranty and support
+
+I've posted these patches in the hope you find them useful, with no warranty
+or guarantee of future support; and in the hope the GTK developers
+themselves may find it useful.
+
+If you produce your own software, packages or distributions that rely
+on the functionality in these patches, or set up computers for others with
+these patches applied,
+please be prepared to take on maintenance of these patches and patches for
+future versions of GTK+ yourself.
+
