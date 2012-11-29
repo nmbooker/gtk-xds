@@ -109,6 +109,11 @@ If you're quick you'll even see the two stages happening one after the other.
 
 So to the application, it is exactly as if you've browsed manually to the folder, provided a name and clicked save.
 
+I will give special mention to the developers of the ROX desktop environment
+as I have used chunks of code from the ROX-CLib library, and the ROX
+project along with a little play with RISC OS Open provided the inspiration for me to write this patch in the first
+place.
+
 ## Supported File Managers
 
 Any file manager that supports the Xdnd Direct Save (XDS) protocol will work
