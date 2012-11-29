@@ -2,6 +2,15 @@
 #include <gtk/gtk.h>
 
 /**
+ * Save Dialogue Test Program.
+ *
+ * Click the Save button and a GtkFileChooserDialog is shown.
+ *
+ * When the save is activated, the location a file would be saved to
+ * is printed to stdout.
+ */
+
+/**
  * Based on http://developer.gnome.org/gtk3/3.0/gtk-getting-started.html
  * hello world example.
  */
