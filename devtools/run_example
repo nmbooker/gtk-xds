@@ -1,0 +1,10 @@
+#! /bin/bash
+
+# (C) 2012, Nick Booker
+# You need to have installed your custom gtk+ to /tmp/gtk+ first.
+# You also need to have compiled example.c with build_example
+
+export PKG_CONFIG_PATH=/tmp/gtk+/lib/pkgconfig
+export LD_LIBRARY_PATH=/tmp/gtk+/lib
+
+"$(dirname "$0")/example"

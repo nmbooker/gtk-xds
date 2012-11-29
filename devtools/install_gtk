@@ -1,0 +1,13 @@
+#! /bin/bash
+
+# (C) 2012, Nick Booker
+# You need to have done:
+#  ./autogen.sh
+#  ./configure --prefix=/tmp/gtk+
+# before doing this
+
+# DO NOT run as root.
+# Run this from the parent to your gtk+ directory.
+
+cd gtk+
+make -j && make install
