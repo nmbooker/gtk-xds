@@ -1,0 +1,25 @@
+From d5ad71e790457f2fd4219114a1ba802dbccb6405 Mon Sep 17 00:00:00 2001
+From: Nick Booker <NMBooker@gmail.com>
+Date: Thu, 29 Nov 2012 10:02:58 +0000
+Subject: [PATCH 4/7] Send file-activated (usually closes dialog) on
+ successful drag-drop.
+
+---
+ gtk/gtkfilechooserdefault.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/gtk/gtkfilechooserdefault.c b/gtk/gtkfilechooserdefault.c
+index 3f202a9..223e9f0 100644
+--- a/gtk/gtkfilechooserdefault.c
++++ b/gtk/gtkfilechooserdefault.c
+@@ -4646,6 +4646,7 @@ static void drag_end (GtkWidget *widget, GdkDragContext *context, GtkFileChooser
+                    path ? path : (const gchar *) uri);
+         */
+         g_free(uri);
++        g_signal_emit_by_name (impl, "file-activated");
+ 
+         /* gtk_widget_destroy (widget); */
+ 
+-- 
+1.7.9.5
+

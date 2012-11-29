@@ -1,0 +1,30 @@
+From be8e987c437da59d6140bd63841108fd19436853 Mon Sep 17 00:00:00 2001
+From: Nick Booker <NMBooker@gmail.com>
+Date: Thu, 29 Nov 2012 11:10:58 +0000
+Subject: [PATCH 7/7] reworded derivation comment
+
+---
+ gtk/gtkfilechooserdefault.c |    7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/gtk/gtkfilechooserdefault.c b/gtk/gtkfilechooserdefault.c
+index cb06436..ccaa28d 100644
+--- a/gtk/gtkfilechooserdefault.c
++++ b/gtk/gtkfilechooserdefault.c
+@@ -18,7 +18,12 @@
+  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
+-/* Portions marked "From ROX-CLib" or "Modified from ROX-CLib":
++/* Some code implementing the Xdnd Direct Save protocol is derived from
++ * the ROX-CLib library's savebox implementation.  Such code is
++ * acknowledged with the comments "From ROX-CLib" or
++ * "Modified from ROX-CLib".
++ *
++ * The copyright notice for the ROX-CLib code follows below:
+  *
+  * Copyright (C) 1991-the ROX-Filer team.
+  * Copyright (C) 2012, Nick Booker
+-- 
+1.7.9.5
+

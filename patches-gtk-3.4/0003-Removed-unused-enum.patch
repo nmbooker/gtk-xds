@@ -1,0 +1,28 @@
+From 827a7775ad1f31dbffc7de8030f93903f14ecb6d Mon Sep 17 00:00:00 2001
+From: Nick Booker <NMBooker@gmail.com>
+Date: Thu, 29 Nov 2012 10:02:28 +0000
+Subject: [PATCH 3/7] Removed unused enum.
+
+---
+ gtk/gtkfilechooserdefault.c |    5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/gtk/gtkfilechooserdefault.c b/gtk/gtkfilechooserdefault.c
+index a27dc19..3f202a9 100644
+--- a/gtk/gtkfilechooserdefault.c
++++ b/gtk/gtkfilechooserdefault.c
+@@ -84,11 +84,6 @@
+ static GdkAtom XdndDirectSave;
+ static GdkAtom text_plain;
+ static GdkAtom xa_string;
+-enum {
+-  GTK_XDS_SAVED,		/**< Done the save - no problem */
+-  GTK_XDS_SAVE_ERROR,		/**< Error during save - reported */
+-  GTK_XDS_NO_HANDLER,		/**< Used internally (sanity checking) */
+-};
+ 
+ #ifdef HAVE_UNISTD_H
+ #include <unistd.h>
+-- 
+1.7.9.5
+

@@ -1,0 +1,52 @@
+From 428def1a21a82e588deaa3ea7bb8fac5e328b9a5 Mon Sep 17 00:00:00 2001
+From: Nick Booker <NMBooker@gmail.com>
+Date: Wed, 28 Nov 2012 19:31:03 +0000
+Subject: [PATCH 2/7] Commented out debugging statements.
+
+---
+ gtk/gtkfilechooserdefault.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/gtk/gtkfilechooserdefault.c b/gtk/gtkfilechooserdefault.c
+index 80f9da2..a27dc19 100644
+--- a/gtk/gtkfilechooserdefault.c
++++ b/gtk/gtkfilechooserdefault.c
+@@ -4632,7 +4632,7 @@ static void drag_end (GtkWidget *widget, GdkDragContext *context, GtkFileChooser
+   g_return_if_fail (widget != NULL);
+   //g_return_if_fail (GTK_IS_SAVEBOX (widget));
+   g_return_if_fail (context != NULL);
+-  printf("IN drag_end\n");
++  //printf("IN drag_end\n");
+ 
+   if (GTK_FILE_CHOOSER_DEFAULT (impl)->using_xds)
+     {
+@@ -4644,7 +4644,7 @@ static void drag_end (GtkWidget *widget, GdkDragContext *context, GtkFileChooser
+ 
+         /* path = rox_path_get_local (uri); */
+ 
+-        printf("  setting uri...\n");
++        // printf("  setting uri...\n");
+         gtk_file_chooser_set_uri(GTK_FILE_CHOOSER (impl), uri);
+         
+         /* g_signal_emit (widget, savebox_signals[SAVED_TO_URI], 0,
+@@ -4713,7 +4713,7 @@ drag_data_get (GtkWidget	*widget,
+   guchar      to_send = 'E';
+   gchar	      *uri;
+   const gchar *pathname;
+-  printf("IN drag_data_get\n");
++  // printf("IN drag_data_get\n");
+ 
+   g_return_if_fail (widget != NULL);
+   //g_return_if_fail (IS_GTK_FILE_CHOOSER (widget));
+@@ -4734,7 +4734,7 @@ drag_data_get (GtkWidget	*widget,
+   }
+ 
+   uri = read_xds_property (context, FALSE);
+-  printf("uri = %s\n", uri);
++  //printf("uri = %s\n", uri);
+ 
+   to_send = 'S';
+   g_free (uri);
+-- 
+1.7.9.5
+

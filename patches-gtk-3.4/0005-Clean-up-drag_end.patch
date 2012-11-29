@@ -1,0 +1,64 @@
+From 2598b9849a5766bf42061600c36e547e2ba1c297 Mon Sep 17 00:00:00 2001
+From: Nick Booker <NMBooker@gmail.com>
+Date: Thu, 29 Nov 2012 10:09:04 +0000
+Subject: [PATCH 5/7] Clean up drag_end.
+
+---
+ gtk/gtkfilechooserdefault.c |   23 ++---------------------
+ 1 file changed, 2 insertions(+), 21 deletions(-)
+
+diff --git a/gtk/gtkfilechooserdefault.c b/gtk/gtkfilechooserdefault.c
+index 223e9f0..d117e5b 100644
+--- a/gtk/gtkfilechooserdefault.c
++++ b/gtk/gtkfilechooserdefault.c
+@@ -4624,10 +4624,10 @@ write_xds_property (GdkDragContext *context, const guchar *value)
+ #define GTK_TARGET_XDS 0x584453
+ static void drag_end (GtkWidget *widget, GdkDragContext *context, GtkFileChooserDefault *impl)
+ {
++  /* TODO: Fail drag if we can't move to the returned URI */
+   g_return_if_fail (widget != NULL);
+   //g_return_if_fail (GTK_IS_SAVEBOX (widget));
+   g_return_if_fail (context != NULL);
+-  //printf("IN drag_end\n");
+ 
+   if (GTK_FILE_CHOOSER_DEFAULT (impl)->using_xds)
+     {
+@@ -4635,34 +4635,15 @@ static void drag_end (GtkWidget *widget, GdkDragContext *context, GtkFileChooser
+       uri = read_xds_property (context, TRUE);
+ 
+       if (uri) {
+-        const gchar  *path;
+-
+-        /* path = rox_path_get_local (uri); */
+-
+-        // printf("  setting uri...\n");
+         gtk_file_chooser_set_uri(GTK_FILE_CHOOSER (impl), uri);
+-        
+-        /* g_signal_emit (widget, savebox_signals[SAVED_TO_URI], 0,
+-                   path ? path : (const gchar *) uri);
+-        */
+         g_free(uri);
++        /* TODO: Don't emit if middle-button-dragged */
+         g_signal_emit_by_name (impl, "file-activated");
+-
+-        /* gtk_widget_destroy (widget); */
+-
+         return;
+       }
+     }
+   else
+       write_xds_property (context, NULL);
+-
+-  /*
+-  if (GTK_FILE_CHOOSER_DEFAULT (widget)->xds_data_sent)
+-  {
+-    g_signal_emit (widget, savebox_signals[SAVED_TO_URI], 0, NULL);
+-    gtk_widget_destroy (widget);
+-  }
+-  */
+ }
+ 
+ static void
+-- 
+1.7.9.5
+
