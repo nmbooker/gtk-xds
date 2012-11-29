@@ -51,6 +51,9 @@ A similar patch set for gtk+2 would be good, as a lot of apps still use
 gtk2.  I targeted gtk3 first because there's more chance the gtk people
 themselves might like to use my code for a proper implementation.
 
+Any bugs relating to the use of these patches should go in gtk-xds issue tracker, and not in the upstream GTK bug tracker - you'll only annoy them.
+
+## Bug saving to remote locations with test builds
 Note that dragging to remote locations in Nautilus, when using a temporary
 rather than packaged version with
 
@@ -58,12 +61,10 @@ rather than packaged version with
 LD_LIBRARY_PATH=/tmp/gtk+/lib
 ```
 
-does not work.  However if you patch your distro's native packages it does.
+does not work.  However if you patch your distro's native packages it should
+work.
 
-Any bugs relating to the use of these patches should go in gtk-xds issue tracker, and not in the upstream GTK bug tracker - you'll only annoy them.
-
-
-== Disclaimer of warranty and support
+## Disclaimer of warranty and support
 
 I've posted these patches in the hope you find them useful, with no warranty
 or guarantee of future support; and in the hope the GTK developers
@@ -75,3 +76,76 @@ these patches applied,
 please be prepared to take on maintenance of these patches and patches for
 future versions of GTK+ yourself.
 
+
+## How to use it
+
+Drag-and-drop saving comes in useful when you have a file browser window
+open for your working files for a particular task, and want to save a new
+file in there.
+
+When faced with a Save As dialogue box with a large 'Save' icon on the top
+you can simply type a name for the file in the usual place and then drag
+the Save icon into the folder window where you want to save the file.
+
+This is exactly equivalent to finding the file manually using folder browser
+within the Save window and clicking Save.
+
+## How it works internally
+
+My patch implements at least part of the Xdnd Direct Save protocol
+(documented on freedesktop.org).
+
+It does so by providing an icon that, when dragged, specifies it accepts
+drag-and-drop save targets.
+
+Any object on screen that accepts drag-and-drop saves will consume the icon
+along with the base name (i.e. the last bit naming the file itself)
+and return the full path to save as back to the Save dialog box.
+
+If successful, the location is automatically set to the full path and a
+click of the 'save' button is emulated by sending the 'file-activated'
+signal back to the GtkFileChooserDefault widget.
+If you're quick you'll even see the two stages happening one after the other.
+
+So to the application, it is exactly as if you've browsed manually to the folder, provided a name and clicked save.
+
+## Supported File Managers
+
+Any file manager that supports the Xdnd Direct Save (XDS) protocol will work
+with the patched FileChoosers.
+
+If you've ever dragged a file from File Roller (the GNOME archive manager)
+into your file manager or onto your desktop, and had the item extracted
+into that location, you will probably be OK dragging and dropping from GTK
+as it uses the same protocol.
+
+Examples of tested file managers:
+ * Nautilus 3.4.2
+ * Thunar 1.4.0
+ * xfdesktop 4.10  (the XfCE 4.10 desktop)
+ * rox-filer 2.10
+
+## Supported Applications
+Any GTK3 application should work as long as its Save As dialog uses or
+is based on the standard GtkFileChooser* stuff in Gtk.  Most GNOME and GTK
+applications do.
+
+My patches do not change the public API of GTK.  In testing, no issues have
+arisen from using the patched libraries with applications that were initially
+built against the unpatched libraries.
+
+Examples of tested applications:
+ * gedit 3.4.1
+ * File Roller 3.4.1 (the GNOME archive manager) (see note below)
+
+### File Roller Notes
+
+When you do Archive -> New... in File Roller, you're faced with a Save As
+like dialogue.  Dragging and dropping will work, however File Roller
+doesn't create the new archive until you add files to it.
+
+Therefore no new icon will appear in the file manager window you dropped it
+in until File Roller decides to create the archive itself.
+
+The same will go for any application that defers actually creating the file
+to a later point in time.
