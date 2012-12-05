@@ -1,0 +1,315 @@
+From e3e0f05c51caa4b74c144fe8adb8b528dc369b3a Mon Sep 17 00:00:00 2001
+From: Nick Booker <NMBooker@gmail.com>
+Date: Wed, 5 Dec 2012 20:44:40 +0000
+Subject: [PATCH] Added drag and drop save support to gtk 2.24
+
+---
+ gtk/gtkfilechooserdefault.c |  209 +++++++++++++++++++++++++++++++++++++++++++
+ gtk/gtkfilechooserprivate.h |    8 ++
+ 2 files changed, 217 insertions(+)
+
+diff --git a/gtk/gtkfilechooserdefault.c b/gtk/gtkfilechooserdefault.c
+index cf8f1d9..475f410 100644
+--- a/gtk/gtkfilechooserdefault.c
++++ b/gtk/gtkfilechooserdefault.c
+@@ -2,6 +2,7 @@
+ /* GTK - The GIMP Toolkit
+  * gtkfilechooserdefault.c: Default implementation of GtkFileChooser
+  * Copyright (C) 2003, Red Hat, Inc.
++ * Copyright (C) 2012, Nick Booker
+  *
+  * This library is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU Lesser General Public
+@@ -19,6 +20,32 @@
+  * Boston, MA 02111-1307, USA.
+  */
+ 
++/* Some code implementing the Xdnd Direct Save protocol is derived from
++ * the ROX-CLib library's savebox implementation.  Such code is
++ * acknowledged with the comments "From ROX-CLib" or
++ * "Modified from ROX-CLib".
++ *
++ * The copyright notice for the ROX-CLib code follows below:
++ *
++ * Copyright (C) 1991-the ROX-Filer team.
++ * Copyright (C) 2012, Nick Booker
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Library General Public
++ * License as published by the Free Software Foundation; either
++ * version 2 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Library General Public License for more details.
++ *
++ * You should have received a copy of the GNU Library General Public
++ * License along with this library; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 02111-1307, USA.
++ */
++
+ #include "config.h"
+ 
+ #include "gdk/gdkkeysyms.h"
+@@ -31,6 +58,7 @@
+ #include "gtkclipboard.h"
+ #include "gtkcomboboxtext.h"
+ #include "gtkentry.h"
++#include "gtkeventbox.h"
+ #include "gtkexpander.h"
+ #include "gtkfilechooserprivate.h"
+ #include "gtkfilechooserdefault.h"
+@@ -72,6 +100,7 @@
+ #include "gtktreeselection.h"
+ #include "gtkvbox.h"
+ #include "gtkintl.h"
++#include <gdk/gdk.h>
+ 
+ #include "gtkalias.h"
+ 
+@@ -82,6 +111,10 @@
+ #include <sys/types.h>
+ #include <locale.h>
+ 
++static GdkAtom XdndDirectSave;
++static GdkAtom text_plain;
++static GdkAtom xa_string;
++
+ #ifdef HAVE_UNISTD_H
+ #include <unistd.h>
+ #endif
+@@ -489,6 +522,10 @@ _gtk_file_chooser_default_class_init (GtkFileChooserDefaultClass *class)
+   GtkBindingSet *binding_set;
+   int i;
+ 
++  XdndDirectSave = gdk_atom_intern ("XdndDirectSave0", FALSE);
++  text_plain = gdk_atom_intern ("text/plain", FALSE);
++  xa_string = gdk_atom_intern ("STRING", FALSE);
++
+   gobject_class->finalize = gtk_file_chooser_default_finalize;
+   gobject_class->constructor = gtk_file_chooser_default_constructor;
+   gobject_class->set_property = gtk_file_chooser_default_set_property;
+@@ -4424,6 +4461,175 @@ location_entry_create (GtkFileChooserDefault *impl)
+   gtk_entry_set_activates_default (GTK_ENTRY (impl->location_entry), TRUE);
+ }
+ 
++/* From ROX-Clib */
++/* Longest possible XdndDirectSave0 property value */
++#define XDS_MAXURILEN 4096
++
++static guchar *
++read_xds_property (GdkDragContext *context, gboolean delete)
++{
++  GdkWindow *source_window;
++  guchar  *prop_text;
++  gint	  length;
++  gchar  *retval = NULL;
++  
++  g_return_val_if_fail (context != NULL, NULL);
++
++  source_window = gdk_drag_context_get_source_window(context);
++
++  if (gdk_property_get (source_window, XdndDirectSave, text_plain,
++		       0, XDS_MAXURILEN, delete,
++		       NULL, NULL, &length, &prop_text)
++	    && prop_text)
++  {
++    /* Terminate the string */
++    retval = g_realloc (prop_text, length + 1);
++    retval[length] = '\0';
++  }
++
++  return retval;
++}
++
++/* From ROX-Clib */
++static void
++write_xds_property (GdkDragContext *context, const guchar *value)
++{
++  GdkWindow *source_window = gdk_drag_context_get_source_window(context);
++  if (value)
++    {
++      gdk_property_change (source_window, XdndDirectSave,
++                           text_plain, 8, GDK_PROP_MODE_REPLACE,
++                           value, strlen ((char *) value));
++    }
++  else
++    gdk_property_delete (source_window, XdndDirectSave);
++}
++
++/* Modified from ROX-Clib */
++#define GTK_TARGET_XDS 0x584453
++static void drag_end (GtkWidget *widget, GdkDragContext *context, GtkFileChooserDefault *impl)
++{
++  /* TODO: Fail drag if we can't move to the returned URI */
++  g_return_if_fail (widget != NULL);
++  //g_return_if_fail (GTK_IS_SAVEBOX (widget));
++  g_return_if_fail (context != NULL);
++
++  if (GTK_FILE_CHOOSER_DEFAULT (impl)->using_xds)
++    {
++      guchar  *uri;
++      uri = read_xds_property (context, TRUE);
++
++      if (uri)
++        {
++          gtk_file_chooser_set_uri(GTK_FILE_CHOOSER (impl), uri);
++          g_free(uri);
++          /* TODO: Don't emit if middle-button-dragged */
++          g_signal_emit_by_name (impl, "file-activated");
++          return;
++        }
++    }
++  else
++      write_xds_property (context, NULL);
++}
++
++/* Modified from ROX-Clib */
++static void
++button_press_over_icon (GtkImage *icon, GdkEvent *event, GtkFileChooserDefault *impl)
++{
++  const gchar *uri = NULL;
++  const gchar *leafname;
++  GdkDragContext *context;
++  uri = gtk_entry_get_text (GTK_ENTRY (impl->location_entry));
++  if (uri && *uri)
++    leafname = g_path_get_basename (uri);
++  else
++    return;
++
++  impl->using_xds = FALSE;
++  impl->xds_data_sent = FALSE;
++  context = gtk_drag_begin (GTK_WIDGET (icon), impl->save_drag_targets,
++                            GDK_ACTION_COPY, event->button.button, event);
++
++  write_xds_property (context, (guchar *) leafname);
++
++  /* TODO: get this working
++   * gtk_drag_set_icon_pixbuf (context,
++                            gtk_image_get_pixbuf (
++                              GTK_IMAGE (impl->save_drag_icon)),
++                            event->button.x, event->button.y);
++   */
++
++}
++
++/* Modified from ROX-Clib */
++static void
++drag_data_get (GtkWidget	*widget,
++	       GdkDragContext   *context,
++	       GtkSelectionData *selection_data,
++               guint            info,
++               guint32          time,
++               GtkFileChooserDefault *impl)
++{
++  guchar      to_send = 'E';
++
++  g_return_if_fail (widget != NULL);
++  g_return_if_fail (context != NULL);
++  g_return_if_fail (selection_data != NULL);
++  g_return_if_fail (impl != NULL);
++  g_return_if_fail (GTK_IS_FILE_CHOOSER_DEFAULT (impl));
++
++  /* We're only concerned with the XDS protocol. Responding to other requests
++   * (including application/octet-stream) is the job of the application.
++   */
++  if (info != GTK_TARGET_XDS)
++  {
++    /* Assume that the data will be/has been sent */
++    impl->xds_data_sent = TRUE;
++    return;
++  }
++
++  to_send = 'S';
++  if (to_send != 'E')
++    impl->using_xds = TRUE;
++  gtk_selection_data_set (selection_data, xa_string, 8, &to_send, 1);
++}
++
++
++/* Sets up drag-and-drop saving */
++
++static void
++save_drag_and_drop_create (GtkFileChooserDefault *impl,
++                           GtkWidget *vbox)
++{
++
++  /* Following code is modified from ROX-Clib */
++  GtkTargetEntry targets[] = { {"XdndDirectSave0", 0, GTK_TARGET_XDS} };
++  impl->save_drag_targets = gtk_target_list_new(targets,
++                                sizeof (targets) / sizeof (*targets));
++
++  impl->save_drag_icon = NULL;
++
++  impl->save_drag_box = gtk_event_box_new ();
++  gtk_container_set_border_width (GTK_CONTAINER (impl->save_drag_box), 4);
++  gtk_widget_add_events(impl->save_drag_box, GDK_BUTTON_PRESS_MASK);
++  g_signal_connect (impl->save_drag_box, "button-press-event",
++                    G_CALLBACK (button_press_over_icon), impl);
++  g_signal_connect (impl->save_drag_box, "drag-end",
++                    G_CALLBACK (drag_end), impl);
++  g_signal_connect (impl->save_drag_box, "drag-data-get",
++                    G_CALLBACK (drag_data_get), impl);
++
++ 
++  impl->save_drag_icon = gtk_image_new_from_stock (GTK_STOCK_SAVE,
++                                                   GTK_ICON_SIZE_DND);
++  gtk_container_add (GTK_CONTAINER (impl->save_drag_box),
++                        impl->save_drag_icon);
++  gtk_widget_show(GTK_WIDGET (impl->save_drag_icon));
++  gtk_widget_show(GTK_WIDGET (impl->save_drag_box));
++  gtk_box_pack_start (GTK_BOX (vbox), impl->save_drag_box,
++                        FALSE, FALSE, 0);
++}
++
+ /* Creates the widgets specific to Save mode */
+ static void
+ save_widgets_create (GtkFileChooserDefault *impl)
+@@ -4438,6 +4644,8 @@ save_widgets_create (GtkFileChooserDefault *impl)
+ 
+   vbox = gtk_vbox_new (FALSE, 12);
+ 
++  save_drag_and_drop_create (impl, vbox);
++
+   impl->save_widgets_table = gtk_table_new (2, 2, FALSE);
+   gtk_box_pack_start (GTK_BOX (vbox), impl->save_widgets_table, FALSE, FALSE, 0);
+   gtk_widget_show (impl->save_widgets_table);
+@@ -4464,6 +4672,7 @@ save_widgets_create (GtkFileChooserDefault *impl)
+   gtk_widget_show (impl->location_entry);
+   gtk_label_set_mnemonic_widget (GTK_LABEL (widget), impl->location_entry);
+ 
++
+   /* Folder combo */
+   impl->save_folder_label = gtk_label_new (NULL);
+   gtk_misc_set_alignment (GTK_MISC (impl->save_folder_label), 0.0, 0.5);
+diff --git a/gtk/gtkfilechooserprivate.h b/gtk/gtkfilechooserprivate.h
+index 6eb03b9..0096e3a 100644
+--- a/gtk/gtkfilechooserprivate.h
++++ b/gtk/gtkfilechooserprivate.h
+@@ -1,6 +1,7 @@
+ /* GTK - The GIMP Toolkit
+  * gtkfilechooserprivate.h: Interface definition for file selector GUIs
+  * Copyright (C) 2003, Red Hat, Inc.
++ * Copyright (C) 2012, Nick Booker
+  *
+  * This library is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU Lesser General Public
+@@ -171,6 +172,13 @@ struct _GtkFileChooserDefault
+ 
+   GtkWidget *save_folder_label;
+ 
++  /* Xdnd Direct Save */
++  GtkWidget *save_drag_icon;
++  GtkWidget *save_drag_box;
++  GtkTargetList *save_drag_targets;
++  gboolean using_xds;
++  gboolean xds_data_sent;
++
+   /* The file browsing widgets */
+   GtkWidget *browse_widgets_box;
+   GtkWidget *browse_header_box;
+-- 
+1.7.9.5
+
