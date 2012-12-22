@@ -1,0 +1,37 @@
+#! /usr/bin/env python
+
+"""Reset the source to freshly 'apt-get source'd state.
+"""
+
+import sys
+import argparse
+import os
+import glob
+import patcher_config
+import subprocess
+
+def main(options):
+    """Main program."""
+    config = patcher_config.Config()
+    source = config.source_package()
+    os.chdir('build')
+    source_dirs = glob.glob('%s*/' % source)
+    source_dir = source_dirs[0]
+    dsc_files = glob.glob('%s*.dsc' % source)
+    dsc_file = dsc_files[0]
+    subprocess.check_call(['rm', '-r', '-f', source_dir])
+    subprocess.check_call(['dpkg-source', '-x', dsc_file])
+    return
+
+def get_options():
+    """Get options for the script."""
+    parser = argparse.ArgumentParser(
+               description="DESCRIPTION",
+             )
+    # parser.add_argument() calls here
+    options = parser.parse_args()
+    # extra processing of options here
+    return options
+
+if __name__ == "__main__":
+    main(get_options())

@@ -1,0 +1,75 @@
+#! /usr/bin/env python
+
+"""Patch the downloaded source.
+"""
+
+import sys
+import argparse
+import os
+import os.path
+import subprocess
+import patcher_config
+import glob
+import time
+
+def main(options):
+    """Main program."""
+    config = patcher_config.Config()
+    source = config.source_package()
+    patches_dir = config.patches_subdir()
+    patches_fullpath = config.patches_fullpath()
+    os.chdir('build')
+    source_dirs = glob.glob('%s*/' % source)
+    source_dir = source_dirs[0]
+    os.chdir(source_dir)
+    patches = glob.glob(os.path.join(patches_fullpath, '*.patch'))
+    for patch in patches:
+        basename = os.path.basename(patch)
+        print "Applying %s" % (basename)
+        with open(patch, 'r') as patchfile:
+            subprocess.check_call(['patch', '-p1'], stdin=patchfile)
+    commit(config)
+    return
+
+def commit(config):
+    patches_dir = config.patches_subdir()
+    patch_name = 'xdnd_direct_save_1.patch'
+    patch_path = os.path.join('debian', 'patches', patch_name)
+    subprocess.check_call(['dpkg-source', '--commit', '.', patch_name])
+    print "Created patch file %s, opening in editor..." % (patch_name)
+    time.sleep(2)
+    # Now we need to edit the patch.
+    with open(patch_path, 'r') as infile:
+        patch_lines = infile.readlines()
+    patch_lines[0] = 'Description: First cut implementation of XDnD Direct Save protocol.\n'
+    while patch_lines[1].rstrip() != ' .':
+        del patch_lines[1]
+
+    long_description = [
+        "Applied patches from gtk-xds/%s" % os.path.basename(patches_dir),
+        "Provide an icon in gtkfilechooserdefault that, when dragged to a file",
+        "manager window, will return the dragged-to location to the chooser's",
+        "caller."
+    ]
+
+    for line in reversed(long_description):
+        patch_lines.insert(1, ' %s\n' % line)
+
+    with open(patch_path, 'w') as outfile:
+        outfile.writelines(patch_lines)
+    subprocess.call(['vim', patch_path])
+    return
+
+
+def get_options():
+    """Get options for the script."""
+    parser = argparse.ArgumentParser(
+               description="patch the downloaded gtk+ source",
+             )
+    # parser.add_argument() calls here
+    options = parser.parse_args()
+    # extra processing of options here
+    return options
+
+if __name__ == "__main__":
+    main(get_options())
