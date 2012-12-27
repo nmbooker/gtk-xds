@@ -11,6 +11,7 @@ import subprocess
 import patcher_config
 import glob
 import time
+import re
 
 def main(options):
     """Main program."""
@@ -54,6 +55,17 @@ def commit(config):
 
     for line in reversed(long_description):
         patch_lines.insert(1, ' %s\n' % line)
+
+    # Look for the first line that looks something close to:
+    # gtk+2.0 (2.24.10-0ubuntu6) precise-proposed; urgency=low
+
+    match = None
+    needle = re.compile(r'gtk+[23].0 \([0-9a-zA-Z-.~]+\)')
+    for (idx, line) in enumerate(patch_lines):
+        match = needle.match(line)
+        if match:
+            # TODO: Append ~SOMETHING1 to the version string
+            break
 
     with open(patch_path, 'w') as outfile:
         outfile.writelines(patch_lines)
