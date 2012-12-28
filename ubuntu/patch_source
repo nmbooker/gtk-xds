@@ -62,7 +62,6 @@ def commit(config):
     # gtk+2.0 (2.24.10-0ubuntu6) precise-proposed; urgency=low
 
     ed.goto_line(1)
-    match = None
     needle = re.compile(r'gtk\+[23].0 \([0-9a-zA-Z-.~]+\)')
     while not ed.line_search(needle):
         ed.down()
