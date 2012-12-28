@@ -38,8 +38,6 @@ def commit(config):
     patch_name = 'xdnd_direct_save_1.patch'
     patch_path = os.path.join('debian', 'patches', patch_name)
     subprocess.check_call(['dpkg-source', '--commit', '.', patch_name])
-    print "Created patch file %s, opening in editor..." % (patch_name)
-    time.sleep(2)
     # Now we need to edit the patch.
     ed = pyed.TextEditor()
     ed.load(patch_path)
@@ -71,7 +69,9 @@ def commit(config):
     # TODO: Append ~SOMETHING1 to the version string
 
     ed.save(patch_path)
-    #subprocess.call(['vim', patch_path])
+    print "Created patch file %s, opening in editor..." % (patch_name)
+    time.sleep(2)
+    subprocess.call(['vim', patch_path])
     return
 
 
