@@ -27,3 +27,11 @@ files held within.  Run this before building a new version.
 
 Running the `get\_source` script will make a new `build` directory and get
 the source latest source code release using `apt-get source`.
+
+## Preparing build environment
+
+```
+sudo apt-get install build-essential autoconf automake dpkg-dev devscripts
+sudo apt-get build-dep gtk+2.0
+sudo apt-get build-dep gtk+3.0
+```

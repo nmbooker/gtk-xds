@@ -12,6 +12,7 @@ import patcher_config
 import glob
 import time
 import re
+import pyed
 
 def main(options):
     """Main program."""
@@ -40,11 +41,13 @@ def commit(config):
     print "Created patch file %s, opening in editor..." % (patch_name)
     time.sleep(2)
     # Now we need to edit the patch.
-    with open(patch_path, 'r') as infile:
-        patch_lines = infile.readlines()
-    patch_lines[0] = 'Description: First cut implementation of XDnD Direct Save protocol.\n'
-    while patch_lines[1].rstrip() != ' .':
-        del patch_lines[1]
+    ed = pyed.TextEditor()
+    ed.load(patch_path)
+    ed.goto_line(1)
+    ed.replace_line('Description: First cut implementation of XDnD Direct Save protocol.')
+    ed.down()
+    while ed.line_text() != ' .':
+        ed.delete_line()
 
     long_description = [
         "Applied patches from gtk-xds/%s" % os.path.basename(patches_dir),
@@ -53,23 +56,22 @@ def commit(config):
         "caller."
     ]
 
-    for line in reversed(long_description):
-        patch_lines.insert(1, ' %s\n' % line)
+    ed.goto_line(1)
+    for line in long_description:
+        ed.new_line(' %s' % line)
 
     # Look for the first line that looks something close to:
     # gtk+2.0 (2.24.10-0ubuntu6) precise-proposed; urgency=low
 
+    ed.goto_line(1)
     match = None
-    needle = re.compile(r'gtk+[23].0 \([0-9a-zA-Z-.~]+\)')
-    for (idx, line) in enumerate(patch_lines):
-        match = needle.match(line)
-        if match:
-            # TODO: Append ~SOMETHING1 to the version string
-            break
+    needle = re.compile(r'gtk\+[23].0 \([0-9a-zA-Z-.~]+\)')
+    while not ed.line_search(needle):
+        ed.down()
+    # TODO: Append ~SOMETHING1 to the version string
 
-    with open(patch_path, 'w') as outfile:
-        outfile.writelines(patch_lines)
-    subprocess.call(['vim', patch_path])
+    ed.save(patch_path)
+    #subprocess.call(['vim', patch_path])
     return
 
 
