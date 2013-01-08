@@ -333,6 +333,26 @@ class LineEditor(object):
         self._cursor = new_pos
         return new_pos
 
+    def replace_to_eol(self, text):
+        """Replace the text starting from the current cursor position
+        to the end of the line.
+
+        To just delete it, use text=''.
+        """
+        current_pos = self.pos()
+        if len(text) < 1:
+            new_pos = current_pos - 1
+        else:
+            new_pos = current_pos
+        new_chars = self._explode(text)
+        index = self._to_index(current_pos)
+        new_text = self._chars[:index]
+        new_text.extend(text)
+        self._chars = new_text
+        self._cursor = new_pos
+        return new_pos
+
+
     def _explode(self, text):
         """Return list of characters in the text.
         """

@@ -24,3 +24,12 @@ class Config(object):
     def patches_fullpath(self):
         subdir = self.patches_subdir()
         return os.path.realpath(os.path.join(IMPORTED_WD, subdir))
+
+    def version_suffix(self):
+        return self.config.get('meta', 'version_suffix')
+
+    def patch_author(self):
+        return self.config.get('meta', 'author')
+
+    def patch_origin(self):
+        return self.config.get('meta', 'origin')
