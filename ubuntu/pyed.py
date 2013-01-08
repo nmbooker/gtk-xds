@@ -21,6 +21,9 @@ class PastEndOfBuffer(LineOutOfRange):
 class BufferEmpty(PyEdError):
     pass
 
+class CursorFrozen(PyEdError):
+    pass
+
 class TextEditor(object):
     """Treat a text file as a series of lines.
 
@@ -28,12 +31,15 @@ class TextEditor(object):
     around the file line-by-line replacing, inserting and deleting lines
     of text as you go.
     """
+
+
     def __init__(self):
         self._lines = []
         # _lineno 0 is just above the first line.
         # Line numbers start from 1, just like in text editors and other
         # file descriptions.
         self._lineno = 0
+        self._cursor_frozen = False
 
     def load(self, filename):
         """Load text in from a named file.
@@ -183,11 +189,182 @@ class TextEditor(object):
         self._validate_lineno(lineno)
         self._lines[self._line_index(lineno)] = text
 
-    def line_match(self, regex, lineno=None):
-        """Match current or numbered line against a compiled regex."""
-        return regex.match(self.line_text(lineno))
+    def line_search(self, regex, lineno=None):
+        """Search current or numbered line for a compiled regex."""
+        return regex.search(self.line_text(lineno))
+
+    def edit_line(self):
+        return LineEditor(self.line_text(), self)
+
+    def freeze_cursor(self):
+        self._cursor_frozen = True
+
+    def unfreeze_cursor(self):
+        self._cursor_frozen = False
+
+    # TODO: assert the cursor isn't frozen at start of each operation
+    # that can move the cursor.
+    def _assert_cursor_not_frozen(self):
+        if self._cursor_frozen:
+            raise CursorFrozen()
+
+class LineEditor(object):
+    """Edit a single line.
+    """
+    def __init__(self, string, editor):
+        self._editor = editor
+        self._chars = self._explode(string)
+        self._in_with = False
+        self._cancelled = False
+        self._cursor = None         # '0' means 'before start', '1' means first character
+        self.goto_start()
+
+    def get_string(self):
+        return u''.join(self._chars)
+
+    def __str__(self):
+        return str(self.get_string())
+
+    def __unicode__(self):
+        return unicode(self.get_string())
+
+    def __enter__(self):
+        self._freeze_editor()    # prevent parent moving in file
+        self._in_with = True
+        return self
+
+    def __exit__(self, exc_type, exc_value, ext_traceback):
+        self._unfreeze_editor()
+        if not exc_type:
+            self.save()
+        self._in_with = False
+
+    def cancel_edit(self):
+        self._cancelled = True
+
+    def save(self):
+        if not self._cancelled:
+            self._editor.replace_line(self.get_string())
+
+    def replace_whole_line(self, string):
+        self._chars = [char for char in string]
+        self.goto_start()
+
+    def goto_start(self):
+        if len(self._chars) == 0:
+            self._cursor = 0
+        else:
+            self._cursor = 1
+
+    def goto_end(self):
+        self._cursor = len(self._chars)
+
+    def goto_left(self):
+        self._cursor -= 1
+
+    def goto_right(self):
+        self._cursor += 1
+
+    def __len__(self):
+        return len(self._chars)
+
+    def char(self, pos=None):
+        """Return the character under the cursor."""
+        if pos is None:
+            pos = self.pos()
+        return self._chars[self._to_index(pos)]
+
+    def pos(self):
+        """Return the current position of the cursor (column number)."""
+        return self._cursor
+
+    def goto_char(self, char, left=False):
+        """Move cursor to the next occurrence of the given character.
+
+        Like 'f' in vim.
+
+        left: Search to the left instead of the right.  Like 'F' in vim.
+        """
+
+        index = None        # Make sure index is in scope
+        if left:
+            # can't use list.index() because it searches forwards not
+            # backwards.
+            for index in reversed(range(self._to_index(self.pos()))):
+                if self._chars[index] == char:
+                    break
+            else:   # didn't find char
+                raise ValueError('Character not found: %r' % char)
+        else:
+            # can use list.index() for this
+            start = self._to_index(self.pos() + 1)  # at next position
+            index = self._chars.index(char, start)
+        # If got here, the character was found
+        self._cursor = self._to_cursor_pos(index)
+        return self.pos()
+
+    def _to_index(self, cursor):
+        """Return the list index of the given cursor position"""
+        return cursor - 1
+
+    def _to_cursor_pos(self, index):
+        """Return the cursor position corresponding to the given list index
+        """
+        return index + 1
+
+    def insert_left(self, text):
+        """Insert a string to the left of the current cursor.
+
+        The new cursor position will be on the last character of the
+        newly-inserted text.
+        """
+        new_chars = self._explode(text)
+        current_pos = self.pos()
+        # Will go to the last character of the newly inserted string.
+        # Makes it consistent if it happens to be the end of line, and also
+        # makes it consistent with Vim.
+        new_pos = current_pos + len(self) - 1
+        index = self._to_index(current_pos)
+        new_text = self._chars[:index]
+        rest = self._chars[index:]
+        new_text.extend(new_chars)
+        new_text.extend(rest)
+        self._chars = new_text
+        self._cursor = new_pos
+        return new_pos
+
+    def replace_to_eol(self, text):
+        """Replace the text starting from the current cursor position
+        to the end of the line.
+
+        To just delete it, use text=''.
+        """
+        current_pos = self.pos()
+        if len(text) < 1:
+            new_pos = current_pos - 1
+        else:
+            new_pos = current_pos
+        new_chars = self._explode(text)
+        index = self._to_index(current_pos)
+        new_text = self._chars[:index]
+        new_text.extend(text)
+        self._chars = new_text
+        self._cursor = new_pos
+        return new_pos
+
+
+    def _explode(self, text):
+        """Return list of characters in the text.
+        """
+        return list(text)
+
+    def _freeze_editor(self):
+        self._editor.freeze_cursor()
+
+    def _unfreeze_editor(self):
+        self._editor.unfreeze_cursor()
+
 
 def print_buffer(editor):
-    orig_line_number = editor.line_number()
     for lineno in editor.iter_line_numbers():
         print(editor.line_text(lineno))
