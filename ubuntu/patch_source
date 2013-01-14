@@ -3,154 +3,27 @@
 """Patch the downloaded source.
 """
 
-import sys
 import argparse
 import os
 import os.path
 import subprocess
 import patcher_config
+import find_source
 import glob
-import time
-import re
-import pyed
 
 def main(options):
     """Main program."""
     config = patcher_config.Config()
-    source = config.source_package()
     patches_dir = config.patches_subdir()
     patches_fullpath = config.patches_fullpath()
-    os.chdir('build')
-    source_dirs = glob.glob('%s*/' % source)
-    source_dir = source_dirs[0]
-    os.chdir(source_dir)
+    find_source.chdir_source(config)
     patches = glob.glob(os.path.join(patches_fullpath, '*.patch'))
-    for patch in patches:
+    for patch in sorted(patches):
         basename = os.path.basename(patch)
         print "Applying %s" % (basename)
         with open(patch, 'r') as patchfile:
             subprocess.check_call(['patch', '-p1'], stdin=patchfile)
-    commit(config)
     return
-
-def commit(config):
-    patches_dir = config.patches_subdir()
-    version_suffix = config.version_suffix()
-    author = config.patch_author()
-    origin = config.patch_origin()
-    patch_name = 'xdnd_direct_save_1.patch'
-    patch_path = os.path.join('debian', 'patches', patch_name)
-    subprocess.check_call(['dpkg-source', '--commit', '.', patch_name])
-    # Now we need to edit the patch.
-    ed = pyed.TextEditor()
-    ed.load(patch_path)
-    ed.goto_line(1)
-    ed.replace_line('Description: First cut implementation of XDnD Direct Save protocol.')
-    ed.down()
-    while ed.line_text() != ' .':
-        ed.delete_line()
-
-    long_description = [
-        "Applied patches from gtk-xds/%s" % os.path.basename(patches_dir),
-        "Provide an icon in gtkfilechooserdefault that, when dragged to a file",
-        "manager window, will return the dragged-to location to the chooser's",
-        "caller."
-    ]
-
-    ed.goto_line(1)
-    for line in long_description:
-        ed.new_line(' %s' % line)
-
-    # Look for the first line that looks something close to:
-    # gtk+2.0 (2.24.10-0ubuntu6) precise-proposed; urgency=low
-
-    ed.goto_line(1)
-    needle = re.compile(r'gtk\+[23].0 \([0-9a-zA-Z-.~]+\)')
-    while not ed.line_search(needle):
-        ed.down()
-    # Append ~SOMETHING1 to the version string
-    with ed.edit_line() as line:
-        line.goto_start()
-        line.goto_char(')')
-        line.insert_left(version_suffix)
-
-    # go to next line starting with a space then a dot
-    while not ed.line_search(re.compile(r'^ \.$')):
-        ed.down()
-
-    # the following line is the start of a second description
-    ed.down()
-    # which is indented by at least one space and should be deleted
-    leading_spaces_re = re.compile(r'^ ')
-    while leading_spaces_re.match(ed.line_text()):
-        ed.delete_line()
-    # and replaced with a relevant description
-    ed.new_line('  * apply gtk-xds patches', above=True)
-
-    _to_line_starting_with(ed, 'Author: ')
-    _replace_value(ed, author)
-
-    # We then make sure we edit stuff below the --- line
-    _to_line_equalling(ed, '---')
-
-    # Edit the Origin line
-    _to_line_starting_with(ed, 'Origin: ')
-    _replace_value(ed, origin)
-
-    # Remove the Bug*: lines.  Assumes the first one is Bug:
-    # Might need extra checks in case some of these aren't found!
-    _to_line_starting_with(ed, 'Bug: ')
-    while ed.line_text().startswith('Bug'):
-        ed.delete_line()
-
-    # Edit the 'Forwarded' line.
-    _to_line_starting_with(ed, 'Forwarded: ')
-    _replace_value(ed, 'not-needed')
-
-    # Delete the Reviewed-By line.
-    _delete_next_line_starting_with(ed, 'Reviewed-By: ')
-
-    # Delete the Last-Update line.
-    _delete_next_line_starting_with(ed, 'Last-Update: ')
-
-    ed.save(patch_path)
-    print "Created patch file %s, opening in editor..." % (patch_name)
-    time.sleep(2)
-    subprocess.call(['vim', patch_path])
-    return
-
-def _replace_value(editor, new_value):
-    """Update the Value bit of the selected Key: Value line."""
-    with editor.edit_line() as line:
-        line.goto_start()
-        line.goto_char(' ')
-        line.goto_right()
-        line.replace_to_eol(new_value)
-
-def _delete_next_line_starting_with(editor, starting_text):
-    """Note if already on such a line, the current line will be deleted.
-
-    To avoid deleting the current line, do editor.down() first.
-    """
-    while not editor.line_text().startswith(starting_text):
-        editor.down()
-    editor.delete_line()
-
-def _to_line_starting_with(editor, starting_text):
-    """Note if already on such a line, no movement will happen.
-
-    To exclude the current line, do editor.down() first.
-    """
-    while not editor.line_text().startswith(starting_text):
-        editor.down()
-
-def _to_line_equalling(editor, needle):
-    """Note if already on such a line, no movement will happen.
-
-    To exclude the current line, do editor.down() first.
-    """
-    while editor.line_text() != needle:
-        editor.down()
 
 def get_options():
     """Get options for the script."""
