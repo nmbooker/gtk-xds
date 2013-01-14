@@ -9,11 +9,7 @@ import os
 import os.path
 import subprocess
 import patcher_config
-import glob
-import time
-import re
 import find_source
-import pyed
 
 def main(options):
     """Main program."""
