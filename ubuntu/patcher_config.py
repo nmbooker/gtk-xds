@@ -33,3 +33,9 @@ class Config(object):
 
     def patch_origin(self):
         return self.config.get('meta', 'origin')
+
+    def patch_email(self):
+        return self.config.get('meta', 'email')
+
+    def patch_fullname(self):
+        return self.config.get('meta', 'fullname')

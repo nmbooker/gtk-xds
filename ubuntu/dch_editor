@@ -1,0 +1,34 @@
+#! /usr/bin/env python
+
+"""Edit debian changelog from within dch command.
+"""
+
+import sys
+import argparse
+import pyed
+import subprocess
+
+def main(options):
+    """Main program."""
+    ed = pyed.TextEditor()
+    ed.load(options.filename)
+    ed.goto_line(1)
+    while not ed.line_text() == '  * ':
+        ed.down()
+    ed.replace_line('  * Apply gtk-xds patch')
+    ed.save(options.filename)
+    return
+
+def get_options():
+    """Get options for the script."""
+    args = [arg for arg in sys.argv[1:] if not arg.startswith('+')]
+    parser = argparse.ArgumentParser(
+               description="edit debian changelog entry created by dch",
+             )
+    parser.add_argument('filename', help='name of filename to change')
+    options = parser.parse_args(args)
+    # extra processing of options here
+    return options
+
+if __name__ == "__main__":
+    main(get_options())

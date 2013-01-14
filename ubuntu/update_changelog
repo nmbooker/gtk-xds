@@ -1,0 +1,50 @@
+#! /usr/bin/env python
+
+"""Update debian changelog
+"""
+
+import sys
+import argparse
+import os
+import os.path
+import subprocess
+import patcher_config
+import glob
+import time
+import re
+import find_source
+import pyed
+
+def main(options):
+    """Main program."""
+    commit()
+    return
+
+def commit():
+    scripts_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
+    config = patcher_config.Config()
+    find_source.chdir_source(config)
+    #print "Scripts dir: %s" % scripts_dir
+    patches_dir = config.patches_subdir()
+    version_suffix = config.version_suffix()[:-1]
+    email = config.patch_email()
+    fullname = config.patch_fullname()
+    origin = config.patch_origin()
+    editor = os.path.join(scripts_dir, 'dch_editor')
+    os.environ['DEBEMAIL'] = email
+    os.environ['DEBFULLNAME'] = fullname
+    os.environ['VISUAL'] = os.environ['EDITOR'] = editor
+    subprocess.check_call(['dch', '-l', version_suffix])
+
+def get_options():
+    """Get options for the script."""
+    parser = argparse.ArgumentParser(
+               description="patch the downloaded gtk+ source",
+             )
+    # parser.add_argument() calls here
+    options = parser.parse_args()
+    # extra processing of options here
+    return options
+
+if __name__ == "__main__":
+    main(get_options())
