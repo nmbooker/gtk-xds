@@ -1,0 +1,27 @@
+#! /usr/bin/env python
+
+"""Run specified command in the source directory.
+
+e.g.
+
+ $ pwd
+ /scratch/nick/gtk-xds/ubuntu/gtk2-quantal
+ $ ../in_src pwd
+ /scratch/nick/gtk-xds/ubuntu/gtk2-quantal/build/gtk+2.0-2.24.13
+"""
+
+import subprocess
+import sys
+import patcher_config
+import find_source
+
+def main():
+    """Main program."""
+    config = patcher_config.Config()
+    find_source.chdir_source(config)
+    cmdline = sys.argv[1:]
+    sys.exit(subprocess.call(cmdline))
+    return
+
+if __name__ == "__main__":
+    main()
