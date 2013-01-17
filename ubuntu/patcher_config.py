@@ -29,7 +29,9 @@ class Config(object):
         return self.config.get('meta', 'version_suffix')
 
     def patch_author(self):
-        return self.config.get('meta', 'author')
+        fullname = self.patch_fullname()
+        email = self.patch_email()
+        return "%s <%s>" % (fullname, email)
 
     def patch_origin(self):
         return self.config.get('meta', 'origin')
