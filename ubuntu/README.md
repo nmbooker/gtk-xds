@@ -5,12 +5,16 @@ This 'ubuntu' directory is for building Ubuntu (and possibly Debian)
 packages for your platform.
 
 The scripts in this directory, unless otherwise noted, should be run in
-the gtk2 or gtk3 subdirectories, e.g.:
+the gtk2-DISTRO or gtk3-DISTRO subdirectories, e.g.:
 
 ```
-cd gtk2
+cd gtk2-quantal
 ../clean
 ../get_source
+../patch_source
+../update_changelog
+../commit
+../in_src debuild
 ```
 
 The `build.ini` files in the gtk2 and gtk3 subdirectories specify what
@@ -36,14 +40,28 @@ $ ../patch_source
 ```
 
 `patch\_source` is a work-in-progress script to apply the patch and
-automatically 'commit' it to the local source package, in preparation
+
+
+## Script: ../update\_changelog
+
+```console
+$ cd gtk2-precise   # for example
+$ ../update_changelog
+```
+
+```update_changelog``` creates a ```debian/changelog``` entry for the
+newly-patched release.
+
+It makes use of the ```dch_editor``` script to assist with that, but that
+can be considered an implementation detail, you don't need to run
+```dch_editor``` yourself.
+
+## Script: ../commit
+
+'commit' the changes to the local source package, in preparation
 for building binaries.
 
-Currently, it gets as far as replacing the short and detailed descriptions
-at the top of the patch file, and it knows where to find the line specifying
-the version number, but not how to change the version just yet.
-
-Also, because it uses `dpkg-source --commit` to generate an initial patch
+Because it uses `dpkg-source --commit` to generate an initial patch
 file it opens up the unedited version of the patch in the text editor
 (vim in my case) before then proceeding to make the changes it can.
 
