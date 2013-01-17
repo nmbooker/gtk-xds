@@ -7,16 +7,25 @@ import sys
 import argparse
 import pyed
 import subprocess
+import time
 
 def main(options):
     """Main program."""
+    subprocess.call(['less', options.filename])
     ed = pyed.TextEditor()
     ed.load(options.filename)
+    ed.goto_line(1)
+    while not 'UNRELEASED' in ed.line_text():
+        ed.down()
+    new = ed.line_text().replace('UNRELEASED', 'unstable')
+    ed.replace_line(new)
     ed.goto_line(1)
     while not ed.line_text() == '  * ':
         ed.down()
     ed.replace_line('  * Apply gtk-xds patch')
     ed.save(options.filename)
+    #time.sleep(2)
+    subprocess.call(['less', options.filename])
     return
 
 def get_options():
