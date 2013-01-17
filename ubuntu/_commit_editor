@@ -1,0 +1,204 @@
+#! /usr/bin/env python
+
+"""Edit commit patch from within dpkg-source --commit run.
+
+Environment Variables:
+    XDS_COMMIT_EDITOR_BUILD_INI: REQUIRED.  Absolute path to build.ini
+    XDS_COMMIT_EDITOR_LOGLEVEL:  Log level, defaults to WARN
+"""
+
+import sys
+import argparse
+import pyed
+import subprocess
+import os
+import logging
+import os.path
+import patcher_config
+import re
+
+def main(options):
+    """Main program."""
+    _set_up_logging()
+    log = logging.getLogger('_commit_editor')
+    ed = pyed.TextEditor()
+    log.info('Working Directory: %r' % os.getcwd())
+    log.info('Filename: %r' % options.filename)
+    log.debug('mtime before load: %s' % os.path.getmtime(options.filename))
+    log.debug('Loading %s' % options.filename)
+    ed.load(options.filename)
+    log.debug('Saving copy to commit.before')
+    ed.save('commit.before')       # For debugging purposes
+    edit_commit_file(ed, log)
+    log.debug('Saving %s' % options.filename)
+    ed.save(options.filename)
+    log.debug('mtime after save: %s' % os.path.getmtime(options.filename))
+    log.debug('Saving copy to commit.after')
+    ed.save('commit.after')        # For debugging purposes
+    #subprocess.call(['less', options.filename])
+    return
+
+def _get_config(log):
+    """Get the Config object."""
+    config_file = os.environ['XDS_COMMIT_EDITOR_BUILD_INI']
+    log.info(' _get_config: Read config file: %r' % config_file)
+    return patcher_config.Config(config_path=config_file)
+
+def _set_up_logging():
+    """Set up the logger module."""
+    loglevel = get_log_level()
+    logging.basicConfig(level=loglevel)
+    return
+
+def get_log_level():
+    """Get the configured log level from the environment."""
+    loglevel_str = os.getenv('XDS_COMMIT_EDITOR_LOGLEVEL', 'WARN').upper()
+    return getattr(logging, loglevel_str)
+
+def edit_commit_file(ed, log):
+    """Actually do the editing, loading parameters as needed."""
+    log.debug('START getting configuration')
+    config = _get_config(log)
+    patches_dir = config.patches_subdir()
+    log.debug('patches_dir = %r' % patches_dir)
+    version_suffix = config.version_suffix()
+    log.debug('version_suffix = %r' % version_suffix)
+    author = config.patch_author()
+    log.debug('author = %r' % author)
+    origin = config.patch_origin()
+    log.debug('origin = %r' % origin)
+    log.debug('FINISHED getting configuration')
+    log.debug('START making changes to the file')
+    log.debug(' Edit short description')
+    ed.goto_line(1)
+    ed.replace_line(
+        'Description: First cut implementation of XDnD Direct Save protocol.')
+
+    log.debug(' Delete placeholder for long description')
+    ed.down()
+    while ed.line_text() != ' .':
+        ed.delete_line()
+
+    log.debug(' Write new long description')
+    long_description = [
+        "Applied patches from gtk-xds/%s" % os.path.basename(patches_dir),
+        "Provide an icon in gtkfilechooserdefault that, when dragged to a file",
+        "manager window, will return the dragged-to location to the chooser's",
+        "caller."
+    ]
+
+    ed.goto_line(1)
+    for line in long_description:
+        ed.new_line(' %s' % line)
+
+    ## Look for the first line that looks something close to:
+    # gtk+2.0 (2.24.10-0ubuntu6) precise-proposed; urgency=low
+
+    log.debug(' Search for version line')
+    ed.goto_line(1)
+    needle = re.compile(r'gtk\+[23].0 \([0-9a-zA-Z-.~]+\)')
+    while not ed.line_search(needle):
+        ed.down()
+    ## Append ~SOMETHING1 to the version string
+    #log.debug(' Append %r to version string' % version_suffix)
+    #with ed.edit_line() as line:
+    #    line.goto_start()
+    #    line.goto_char(')')
+    #    line.insert_left(version_suffix)
+
+    # go to next line starting with a space then a dot
+    log.debug(' Go to next line starting with a space then a dot " ."')
+    while not ed.line_search(re.compile(r'^ \.$')):
+        ed.down()
+
+    log.debug(' The following line should contain our changelog entry')
+    # the following line is the start of a second description
+    ed.down()
+    log.debug(' which is indented by at least one space and I\'m skipping over')
+    # which is indented by at least one space and should be left intact
+    leading_spaces_re = re.compile(r'^ ')
+    while leading_spaces_re.match(ed.line_text()):
+        ed.down()
+
+    #log.debug(' Find Author line')
+    #_to_line_starting_with(ed, 'Author: ')
+    #log.debug(' set Author')
+    #_replace_value(ed, author)
+
+    # We then make sure we edit stuff below the --- line
+    log.debug(' Skip to line beginning with ---')
+    _to_line_equalling(ed, '---')
+
+    # Edit the Origin line
+    log.debug(' Set the Origin')
+    _to_line_starting_with(ed, 'Origin: ')
+    _replace_value(ed, origin)
+
+    # Remove the Bug*: lines.  Assumes the first one is Bug:
+    # Might need extra checks in case some of these aren't found!
+    log.debug(' Delete Bug*: lines')
+    _to_line_starting_with(ed, 'Bug')
+    while ed.line_text().startswith('Bug'):
+        ed.delete_line()
+
+    # Edit the 'Forwarded' line.
+    log.debug(' Edit the Forwarded: line')
+    _to_line_starting_with(ed, 'Forwarded: ')
+    _replace_value(ed, 'not-needed')
+
+    # Delete the Reviewed-By line.
+    log.debug(' Delete the Reviewed-By: line')
+    _delete_next_line_starting_with(ed, 'Reviewed-By: ')
+
+    # Delete the Last-Update line.
+    log.debug(' Delete the Last-Update: line')
+    _delete_next_line_starting_with(ed, 'Last-Update: ')
+    log.debug('FINISHED making changes to the file buffer')
+
+def _replace_value(editor, new_value):
+    """Update the Value bit of the selected Key: Value line."""
+    with editor.edit_line() as line:
+        line.goto_start()
+        line.goto_char(' ')
+        line.goto_right()
+        line.replace_to_eol(new_value)
+
+def _delete_next_line_starting_with(editor, starting_text):
+    """Note if already on such a line, the current line will be deleted.
+
+    To avoid deleting the current line, do editor.down() first.
+    """
+    while not editor.line_text().startswith(starting_text):
+        editor.down()
+    editor.delete_line()
+
+def _to_line_starting_with(editor, starting_text):
+    """Note if already on such a line, no movement will happen.
+
+    To exclude the current line, do editor.down() first.
+    """
+    while not editor.line_text().startswith(starting_text):
+        editor.down()
+
+def _to_line_equalling(editor, needle):
+    """Note if already on such a line, no movement will happen.
+
+    To exclude the current line, do editor.down() first.
+    """
+    while editor.line_text() != needle:
+        editor.down()
+
+
+def get_options():
+    """Get options for the script."""
+    args = [arg for arg in sys.argv[1:] if not arg.startswith('+')]
+    parser = argparse.ArgumentParser(
+               description="edit debian changelog entry created by dch",
+             )
+    parser.add_argument('filename', help='name of filename to change')
+    options = parser.parse_args(args)
+    # extra processing of options here
+    return options
+
+if __name__ == "__main__":
+    main(get_options())

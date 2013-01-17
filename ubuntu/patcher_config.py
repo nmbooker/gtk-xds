@@ -8,12 +8,18 @@ import os
 
 IMPORTED_WD = os.getcwd()
 
+def fullpath():
+    return os.path.join(IMPORTED_WD, 'build.ini')
+
 class Config(object):
     """Configuration for patch scripts for GTK DnD.
     """
-    def __init__(self):
+    def __init__(self, config_path=None):
+        if config_path is None:
+            config_path = fullpath()
         self.config = ConfigParser.RawConfigParser()
-        self.config.read(os.path.join(IMPORTED_WD, 'build.ini'))
+        self.config.read(config_path)
+        self.config_path = config_path
 
     def source_package(self):
         return self.config.get('package', 'source_package')
