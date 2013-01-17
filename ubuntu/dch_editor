@@ -8,24 +8,44 @@ import argparse
 import pyed
 import subprocess
 import time
+import os
+import logging
+import os.path
 
 def main(options):
     """Main program."""
-    subprocess.call(['less', options.filename])
+    loglevel_str = os.getenv('XDS_DCH_EDITOR_LOGLEVEL', 'WARN').upper()
+    loglevel = getattr(logging, loglevel_str)
+    logging.basicConfig(level=loglevel)
+    log = logging.getLogger('dch_editor')
     ed = pyed.TextEditor()
+    log.info('Working Directory: %r' % os.getcwd())
+    log.info('Filename: %r' % options.filename)
+    log.debug('mtime before load: %s' % os.path.getmtime(options.filename))
+    log.debug('Loading %s' % options.filename)
     ed.load(options.filename)
+    log.debug('Saving copy to dch.before')
+    ed.save('dch.before')       # For debugging purposes
+    log.debug('START making changes to the file')
+    log.debug(' change UNRELEASED to unstable')
     ed.goto_line(1)
     while not 'UNRELEASED' in ed.line_text():
         ed.down()
     new = ed.line_text().replace('UNRELEASED', 'unstable')
     ed.replace_line(new)
+    log.debug(' insert change description')
     ed.goto_line(1)
     while not ed.line_text() == '  * ':
         ed.down()
     ed.replace_line('  * Apply gtk-xds patch')
+    log.debug('FINISHED making changes to the file')
+    log.debug('Waiting a couple of seconds to ensure mtime is late enough')
+    time.sleep(2)
+    log.debug('Saving %s' % options.filename)
     ed.save(options.filename)
-    #time.sleep(2)
-    subprocess.call(['less', options.filename])
+    log.debug('mtime after save: %s' % os.path.getmtime(options.filename))
+    log.debug('Saving copy to dch.after')
+    ed.save('dch.after')        # For debugging purposes
     return
 
 def get_options():
