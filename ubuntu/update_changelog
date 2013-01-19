@@ -22,7 +22,7 @@ def commit():
     find_source.chdir_source(config)
     #print "Scripts dir: %s" % scripts_dir
     patches_dir = config.patches_subdir()
-    version_suffix = config.version_suffix()[:-1]
+    version_suffix = config.version_suffix()
     email = config.patch_email()
     fullname = config.patch_fullname()
     origin = config.patch_origin()
