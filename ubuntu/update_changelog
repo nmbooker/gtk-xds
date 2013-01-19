@@ -26,7 +26,7 @@ def commit():
     email = config.patch_email()
     fullname = config.patch_fullname()
     origin = config.patch_origin()
-    editor = os.path.join(scripts_dir, 'dch_editor')
+    editor = os.path.join(scripts_dir, '_dch_editor')
     os.environ['DEBEMAIL'] = email
     os.environ['DEBFULLNAME'] = fullname
     os.environ['VISUAL'] = os.environ['EDITOR'] = editor
