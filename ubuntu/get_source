@@ -8,6 +8,9 @@ import argparse
 import ConfigParser
 import os
 import subprocess
+import tempfile
+import shutil
+import os.path
 
 def main(options):
     """Main program."""
@@ -16,8 +19,91 @@ def main(options):
     source = config.get('package', 'source_package')
     os.mkdir('build')
     os.chdir('build')
-    subprocess.call(['apt-get', 'source', source])
+    with FakeAptEnvironment(os.path.realpath('../sources.list')) as apt:
+        apt.update()
+        apt.get_source(source)
     return
+
+class FakeAptEnvironment(object):
+    """Get source packages for other distributions.
+
+     with FakeAptEnvironment(source_list="/an/alternative/sources.list") as fakeapt:
+         fakeapt.update()
+         fakeapt.get_source('gtk+2.0')
+
+    """
+    def __init__(self, sources_list):
+        """
+        sources_list: Path to the sources.list file to use
+        """
+        self._source_list = sources_list
+
+    def __enter__(self):
+        self._tmpdir = tempfile.mkdtemp()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        shutil.rmtree(self._tmpdir)
+        return False    # Don't suppress any exceptions from block
+
+    def apt_get(self, args):
+        cmd = ['apt-get']
+        self._extend_with_options(cmd)
+        cmd.extend(args)
+        subprocess.check_call(cmd)
+
+    def update(self):
+        return self.apt_get(['update'])
+
+    def get_source(self, srcpkg):
+        return self.apt_get(['source', srcpkg])
+
+    def _get_options(self):
+        for k, v in self._config().items():
+            option_pair = '%s=%s' % (k, v)
+            yield ('-o', option_pair)
+
+    def _extend_with_options(self, cmd):
+        for option in self._get_options():
+            cmd.extend(option)
+        return
+
+    def _config(self):
+        conf = {}
+        conf['Dir::Etc::SourceList'] = self._source_list
+        path = conf['Dir::Etc::SourceParts'] = self._tmppath('etc/apt/sources.list.d')
+        mkdir_p(path)
+        path = conf['Dir::Cache::Archives'] = self._tmppath('var/lib/apt/archives')
+        mkdir_p(path)
+        mkdir_p(os.path.join(path, 'partial'))
+        path = conf['Dir::State::Lists'] = self._tmppath('var/lib/apt/lists')
+        mkdir_p(path)
+        mkdir_p(os.path.join(path, 'partial'))
+        dpkg_root = self._tmpdir
+        path = conf['Dpkg::Options::'] = '--root=%s' % dpkg_root
+        mkdir_p(os.path.join(dpkg_root, 'var', 'lib', 'dpkg'))
+        return conf
+
+    def _tmppath(self, *parts):
+        return os.path.join(self._tmpdir, *parts)
+
+
+# Thanks tzot on http://stackoverflow.com/questions/600268/mkdir-p-functionality-in-python
+
+def mkdir_p(path):
+    import os, errno
+    try:
+        os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
+
+def apt_config(config, tmpdir):
+    conf = {}
+    conf['Dir::Etc::SourceList'] = os.getcwd()
+    return conf
 
 def get_options():
     """Get options for the script."""
