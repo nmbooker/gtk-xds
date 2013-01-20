@@ -79,9 +79,9 @@ class FakeAptEnvironment(object):
         path = conf['Dir::State::Lists'] = self._tmppath('var/lib/apt/lists')
         mkdir_p(path)
         mkdir_p(os.path.join(path, 'partial'))
-        dpkg_root = self._tmpdir
-        path = conf['Dpkg::Options::'] = '--root=%s' % dpkg_root
-        mkdir_p(os.path.join(dpkg_root, 'var', 'lib', 'dpkg'))
+        rootdir = self._tmpdir
+        conf['Dpkg::Options::'] = '--root=%s' % rootdir
+        mkdir_p(os.path.join(rootdir, 'var/lib/dpkg'))
         return conf
 
     def _tmppath(self, *parts):
