@@ -100,11 +100,6 @@ def mkdir_p(path):
         else:
             raise
 
-def apt_config(config, tmpdir):
-    conf = {}
-    conf['Dir::Etc::SourceList'] = os.getcwd()
-    return conf
-
 def get_options():
     """Get options for the script."""
     parser = argparse.ArgumentParser(
