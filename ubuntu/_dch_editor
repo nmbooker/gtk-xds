@@ -11,12 +11,11 @@ import time
 import os
 import logging
 import os.path
+import logenv
 
 def main(options):
     """Main program."""
-    loglevel_str = os.getenv('XDS_DCH_EDITOR_LOGLEVEL', 'WARN').upper()
-    loglevel = getattr(logging, loglevel_str)
-    logging.basicConfig(level=loglevel)
+    logenv.configure_logging_module('XDS_DCH_EDITOR_LOGLEVEL')
     log = logging.getLogger('dch_editor')
     ed = pyed.TextEditor()
     log.info('Working Directory: %r' % os.getcwd())
