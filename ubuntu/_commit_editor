@@ -16,10 +16,11 @@ import logging
 import os.path
 import patcher_config
 import re
+import logenv
 
 def main(options):
     """Main program."""
-    _set_up_logging()
+    logenv.configure_logging_module('XDS_COMMIT_EDITOR_LOGLEVEL')
     log = logging.getLogger('_commit_editor')
     ed = pyed.TextEditor()
     log.info('Working Directory: %r' % os.getcwd())
@@ -43,17 +44,6 @@ def _get_config(log):
     config_file = os.environ['XDS_COMMIT_EDITOR_BUILD_INI']
     log.info(' _get_config: Read config file: %r' % config_file)
     return patcher_config.Config(config_path=config_file)
-
-def _set_up_logging():
-    """Set up the logger module."""
-    loglevel = get_log_level()
-    logging.basicConfig(level=loglevel)
-    return
-
-def get_log_level():
-    """Get the configured log level from the environment."""
-    loglevel_str = os.getenv('XDS_COMMIT_EDITOR_LOGLEVEL', 'WARN').upper()
-    return getattr(logging, loglevel_str)
 
 def edit_commit_file(ed, log):
     """Actually do the editing, loading parameters as needed."""
